@@ -1,0 +1,108 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Copy Desk · Paper Dashboard</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<style>
+:root{--bg:#0d1117;--card:#161b22;--line:#30363d;--fg:#e6edf3;--mut:#8b949e;--g:#3fb950;--r:#f85149;--y:#d29922;--b:#58a6ff}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--fg);font:14px/1.4 -apple-system,system-ui,Segoe UI,Roboto,sans-serif}
+.wrap{max-width:1100px;margin:auto;padding:12px}
+.banner{background:#3d2c00;color:#ffd666;border:1px solid #6b4f00;border-radius:8px;padding:6px 10px;text-align:center;font-weight:600;margin-bottom:10px}
+h1{font-size:20px;margin:4px 0 8px}h2{font-size:16px;margin:18px 0 8px}
+.strip{display:flex;flex-wrap:wrap;gap:8px;font-size:12px;color:var(--mut);margin-bottom:12px}
+.pill{background:var(--card);border:1px solid var(--line);border-radius:999px;padding:3px 9px}
+.dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:4px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:8px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:10px;cursor:pointer}
+.card.sel{border-color:var(--b)}.card .n{color:var(--mut);text-transform:uppercase;font-size:11px;letter-spacing:.05em}
+.card .e{font-size:22px;font-weight:700}.card .s{font-size:12px;color:var(--mut)}
+.g{color:var(--g)}.r{color:var(--r)}
+.box{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:10px}
+.chartbox{height:300px}.chartbox2{height:200px}.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:8px;margin-top:8px}
+table{width:100%;border-collapse:collapse;font-size:12.5px}th,td{padding:5px 6px;white-space:nowrap;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
+th{color:var(--mut);font-weight:500}.tw{overflow-x:auto}
+.feed div{padding:6px 0;border-bottom:1px solid var(--line);font-size:13px}.feed .k{font-weight:700;margin-right:6px}
+.tag{font-size:11px;color:var(--mut)}a{color:var(--b);text-decoration:none}
+.tabs button{background:var(--card);color:var(--fg);border:1px solid var(--line);border-radius:6px;padding:4px 10px;margin-right:4px}
+.tabs button.on{border-color:var(--b);color:var(--b)}
+</style></head><body><div class="wrap">
+<div class="banner">PAPER TRADING · FAKE MONEY · no real trades are placed</div>
+<h1>Copy Desk Paper Test</h1>
+<div class="strip" id="strip">Loading…</div>
+<div class="grid" id="cards"></div>
+<h2>Equity over time <span class="tag">(tap legend to toggle books)</span></h2>
+<div class="box chartbox"><canvas id="eq"></canvas></div>
+<h2>Analytics · blind vs managed</h2><div class="box tw" id="an"></div><div class="grid2"><div class="box chartbox2"><canvas id="ddc"></canvas></div><div class="box chartbox2"><canvas id="dpc"></canvas></div></div><div id="dd"></div>
+<h2>Latest moves</h2>
+<div class="tabs"><button id="tm" class="on">Trades</button><button id="td">Judge &amp; desk decisions</button></div>
+<div class="box feed" id="feed"></div>
+<h2>Scanner hits</h2><div class="box tw" id="hits"></div>
+<p class="tag">Auto-refreshes every 60 s. Data exported every 2 min. All times Pacific (PT).</p>
+</div>
+<script>
+const C=["#58a6ff","#3fb950","#d29922","#f85149","#bc8cff","#39c5cf","#ff7b72","#e3b341"];
+let D=null,sel=null,chart=null,tab='m';
+const f$=v=>v==null?'–':'$'+Number(v).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2});
+const pc=v=>v==null?'–':(v>0?'+':'')+v.toFixed(1)+'%';
+const cl=v=>v>0?'g':v<0?'r':'';
+const px=v=>v==null?'–':v<0.01?Number(v).toPrecision(3):Number(v).toLocaleString(undefined,{maximumFractionDigits:4});
+const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const dex=(c,m)=>m?`https://dexscreener.com/${c==='robinhood'?'robinhood':c||'solana'}/${m}`:'#';
+function dot(ok){return `<span class="dot" style="background:${ok?'var(--g)':'var(--r)'}"></span>`}
+function render(){
+ D.books=(D.books||[]).filter(b=>b.name==='blind'||b.name==='managed');D.books.forEach(b=>b.stats=b.stats||{});D.series=Object.fromEntries(Object.entries(D.series||{}).filter(([k])=>k==='blind'||k==='managed'));D.moves=(D.moves||[]).filter(m=>m.book==='blind'||m.book==='managed');D.decisions=(D.decisions||[]).filter(m=>m.book==='blind'||m.book==='managed');
+ const s=D.status, w=s.watcher||{};
+ const age=Math.round((Date.now()/1000-D.updated_epoch)/60);
+ strip.innerHTML=`<span class="pill">Updated ${esc(D.updated)}${age>5?` <b class="r">(${age} min old)</b>`:''}</span>
+ <span class="pill">${dot(w.alive)}Watcher${w.targets?` · ${w.targets} wallets`:''}${w.median_latency_s?` · ~${w.median_latency_s}s lag`:''}</span>
+ <span class="pill">${dot(s.feeds_alive)}Feeds</span><span class="pill">${dot(s.scanner_alive)}Scanner</span>
+`;
+ const bs=[...D.books].sort((a,b)=>b.equity-a.equity);
+ if(!sel) sel=bs[0]?.name;
+ cards.innerHTML=bs.map(b=>`<div class="card ${b.name===sel?'sel':''}" data-b="${b.name}"><div class="n">${esc(b.name)}</div>
+ <div class="e ${cl(b.pnl)}">${f$(b.equity)}</div><div class="${cl(b.pnl)}">${b.pnl>=0?'+':''}${f$(b.pnl).replace('$-','-$')} (${pc(b.pnl_pct)})</div>
+ <div class="s">${b.open_count} open · W/L ${b.wins}/${b.losses}${b.flat?` · ${b.flat} flat`:''}</div></div>`).join('');
+ document.querySelectorAll('.card').forEach(c=>c.onclick=()=>{sel=c.dataset.b;render()});
+ // chart
+ const names=D.books.map(b=>b.name);
+ const ds=names.map((n,i)=>({label:n,data:(D.series[n]||[]).map(p=>({x:p.t,y:p.v})),borderColor:C[i%C.length],backgroundColor:C[i%C.length],pointRadius:0,borderWidth:2,tension:.2}));
+ const labels=[...new Set(names.flatMap(n=>(D.series[n]||[]).map(p=>p.t)))];
+ const hidden=chart?Object.fromEntries(chart.data.datasets.map((d,i)=>[d.label,!chart.isDatasetVisible(i)])):{};
+ ds.forEach(d=>d.hidden=!!hidden[d.label]);
+ if(chart)chart.destroy();
+ chart=new Chart(eq,{type:'line',data:{labels,datasets:ds},options:{maintainAspectRatio:false,parsing:{xAxisKey:'x',yAxisKey:'y'},interaction:{mode:'index',intersect:false},
+  plugins:{legend:{labels:{color:'#e6edf3',boxWidth:12}}},scales:{x:{ticks:{color:'#8b949e',maxTicksLimit:6,autoSkip:true},grid:{color:'#21262d'}},y:{ticks:{color:'#8b949e',callback:v=>'$'+v},grid:{color:'#21262d'}}}}});
+ // analytics
+ const NA='<span class="tag">n/a</span>',BB=['blind','managed'].map(n=>D.books.find(x=>x.name===n)).filter(Boolean);D.books=BB;
+ const v=(x,f)=>x==null?NA:f(x), tr=(lab,f)=>`<tr><th>${lab}</th>${BB.map(b=>`<td>${f(b.stats||{},b)}</td>`).join('')}</tr>`;
+ const bt2=(x)=>x?`${esc(x.symbol)} <span class="${cl(x.pnl)}">${f$(x.pnl)} (${pc(x.pct)})</span>`:NA;
+ const grp=(L)=>L&&L.length?L.map(e=>`${esc(e.k)}: <span class="${cl(e.pnl)}">${f$(e.pnl)}</span> <span class="tag">(${e.n}, ${e.wins}W)</span>`).join('<br>'):NA;
+ an.innerHTML=`<table><tr><th></th>${BB.map(b=>`<th>${esc(b.name)}</th>`).join('')}</tr>
+ ${tr('Equity',(s,b)=>`${f$(b.equity)} <span class="${cl(b.pnl)}">${pc(b.pnl_pct)}</span>`)}
+ ${tr('Closed trades',s=>s.closed_n??NA)}${tr('Win rate',s=>v(s.win_rate,x=>x+'%'))}
+ ${tr('Avg win / avg loss',s=>`${v(s.avg_win,f$)} / ${v(s.avg_loss,f$)}`)}${tr('Profit factor',s=>v(s.profit_factor,x=>x))}
+ ${tr('Best trade',s=>bt2(s.best))}${tr('Worst trade',s=>bt2(s.worst))}${tr('Max drawdown',s=>v(s.max_dd_pct,x=>`<span class="r">${x}%</span>`))}
+ ${tr('Realized / unrealized',s=>`<span class="${cl(s.realized)}">${f$(s.realized)}</span> / <span class="${cl(s.unrealized)}">${f$(s.unrealized)}</span>`)}
+ ${tr('Avg hold',s=>v(s.avg_hold_h,x=>x+' h'))}${tr('By chain',s=>grp(s.by_chain))}${tr('Confluence vs base size',s=>grp(s.by_size))}
+ ${tr('Ladder hits',s=>s.ladder?Object.entries(s.ladder).map(([k,n])=>`${k}: ${n}`).join(' · '):NA)}
+ ${tr('PnL by trader',s=>grp(s.by_trader))}</table>`;
+ const mk=(el,old,type,key,lab)=>{if(old)old.destroy();const L=[...new Set(BB.flatMap(b=>((b.stats||{})[key]||[]).map(p=>p.t||p.d)))];
+  return new Chart(el,{type,data:{labels:L,datasets:BB.map((b,i)=>({label:b.name+' '+lab,data:L.map(l=>{const p=((b.stats||{})[key]||[]).find(p=>(p.t||p.d)===l);return p?(p.v??p.pnl):null}),borderColor:C[i],backgroundColor:C[i],pointRadius:0,borderWidth:2,spanGaps:true}))},
+  options:{maintainAspectRatio:false,animation:false,plugins:{legend:{labels:{color:'#e6edf3',boxWidth:10}}},scales:{x:{ticks:{color:'#8b949e',maxTicksLimit:5}},y:{ticks:{color:'#8b949e'}}}}})};
+ window.c1=mk(ddc,window.c1,'line','dd_series','drawdown %');window.c2=mk(dpc,window.c2,'bar','daily','daily PnL $');
+ // positions: both books, always shown
+ const bt=(b)=>{const c=b.caps||{};return `<h2>${esc(b.name.toUpperCase())} · ${f$(b.equity)} <span class="${cl(b.pnl)}">(${pc(b.pnl_pct)})</span></h2><div class="box">
+ <div class="s"><b>${b.open_count} / ${c.max_open??8} max open</b> · <b class="${c.exposure_pct>c.cap_pct?'r':''}">exposure ${c.exposure_pct??'–'}% / ${c.cap_pct??50}% cap</b> · ${c.accepting?'<span class="g">taking new buys</span>':'<span class="r">no new buys until under caps</span>'}</div>
+ <div class="s">Cash ${f$(b.cash)} · Realized <span class="${cl(b.realized)}">${f$(b.realized)}</span> · Unrealized <span class="${cl(b.unrealized)}">${f$(b.unrealized)}</span></div>
+ <h3 style="font-size:14px">Open positions (${b.open.length})</h3><div class="tw"><table><tr><th>Token</th><th>Chain</th><th>Trader(s)</th><th>Entry (PT)</th><th>Cost</th><th>Value now</th><th>PnL</th><th>% of book</th></tr>
+ ${b.open.map(p=>`<tr><td><a href="${dex(p.chain,p.mint)}" target="_blank">${esc(p.symbol)}</a>${p.ladder?`<div class="tag">ladder sold ${esc(p.ladder)}: ${f$(p.sold_so_far)}</div>`:''}</td><td>${esc(p.chain)}</td><td>${esc(p.traders)}${p.confluence?`<div class="tag">${esc(p.confluence)}</div>`:''}</td><td class="tag">${esc(p.opened)}</td><td>${f$(p.cost)}</td><td>${f$(p.value)}${p.flag?`<div class="r tag">${esc(p.flag)}</div>`:''}</td><td class="${cl(p.pnl)}">${f$(p.pnl)}<div>${pc(p.pnl_pct)}</div></td><td>${p.pct_of_book??'–'}%</td></tr>`).join('')||'<tr><td colspan=8 class="tag">none</td></tr>'}</table></div>
+ <h3 style="font-size:14px">Closed trades (${b.history.length}) · newest first</h3><div class="tw"><table><tr><th>Token</th><th>Chain</th><th>Trader</th><th>Opened → Closed (PT)</th><th>Cost</th><th>Proceeds</th><th>PnL</th><th>Exit reason</th></tr>
+ ${b.history.map(p=>`<tr><td><a href="${dex(p.chain,p.mint)}" target="_blank">${esc(p.symbol)}</a></td><td>${esc(p.chain)}</td><td>${esc(p.traders)}</td><td class="tag">${esc(p.opened)}<br>${esc(p.closed)}</td><td>${f$(p.cost)}</td><td>${f$(p.proceeds)}</td><td class="${cl(p.pnl)}">${f$(p.pnl)}<div>${pc(p.pnl_pct)}</div></td><td class="tag">${esc(p.reason)}</td></tr>`).join('')||'<tr><td colspan=8 class="tag">none</td></tr>'}</table></div></div>`};
+ dd.innerHTML=['blind','managed'].map(n=>D.books.find(x=>x.name===n)).filter(Boolean).map(bt).join('');
+ const L=tab==='m'?D.moves:D.decisions;
+ feed.innerHTML=L.map(m=>{const k=m.kind||'';const c=/BUY|COPY/.test(k)?'g':/SELL|SKIP|PASS/.test(k)?'r':'';
+  return `<div><span class="k ${c}">${esc(k)}</span><b>${esc(m.token)}</b> <span class="tag">${esc(m.book)} · ${esc(m.chain||'')} ${m.leader?'· '+esc(m.leader):''} · ${esc(m.t)}</span><div class="tag">${esc(m.reason)}</div></div>`}).join('')||'<div class="tag">nothing yet</div>';
+ hits.innerHTML=`<table><tr><th>Time</th><th>Token</th><th>Mcap</th><th>Result</th></tr>${D.scanner_hits.map(h=>`<tr><td class="tag">${esc(h.t)}</td><td>${esc(h.symbol)}</td><td>${h.mcap?f$(h.mcap):'–'}</td><td class="tag">${esc(h.result)}${h.reason&&h.reason!==h.result?': '+esc(h.reason):''}</td></tr>`).join('')}</table>`;
+}
+tm.onclick=()=>{tab='m';tm.className='on';td.className='';render()};td.onclick=()=>{tab='d';td.className='on';tm.className='';render()};
+async function load(){try{const r=await fetch('data.json?'+Date.now(),{cache:'no-store'});D=await r.json();render()}catch(e){strip.textContent='Could not load data: '+e}}
+load();setInterval(load,60000);
+</script></body></html>
