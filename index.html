@@ -1,0 +1,395 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Portfolio Analytics Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,650;1,9..144,500;1,9..144,650&family=IBM+Plex+Mono:wght@400;500&family=Plus+Jakarta+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<style>
+:root{
+  --bg:#07080d; --bg2:#0c0e16; --card:#12141c; --card2:#171a24;
+  --line:rgba(255,255,255,.08); --line2:rgba(255,255,255,.14);
+  --text:#eef1f7; --mut:#8b93a7; --dim:#5f6678;
+  --good:#3ee0a8; --bad:#ff6b7a; --warn:#f5c16c;
+  --fomo:#7aa2ff; --gmgn:#2dd4bf; --wallet:#f5b942;
+  --shadow:0 18px 50px rgba(0,0,0,.35);
+  --r:18px;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:
+  radial-gradient(1200px 600px at 10% -10%, rgba(122,162,255,.16), transparent 50%),
+  radial-gradient(900px 500px at 110% 0%, rgba(45,212,191,.10), transparent 45%),
+  radial-gradient(800px 400px at 50% 120%, rgba(245,185,66,.07), transparent 40%),
+  var(--bg);
+color:var(--text);font:15px/1.5 "Plus Jakarta Sans",system-ui,sans-serif;min-height:100%}
+a{color:var(--fomo);text-decoration:none}
+a:hover{text-decoration:underline}
+.wrap{max-width:1180px;margin:0 auto;padding:28px 22px 64px}
+.banner{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;
+  background:linear-gradient(90deg,rgba(245,193,108,.12),rgba(122,162,255,.08));
+  border:1px solid rgba(245,193,108,.28);color:var(--warn);border-radius:999px;padding:8px 16px;font-size:12px;font-weight:600;letter-spacing:.04em;text-transform:uppercase}
+.banner b{font-weight:700}
+header{display:flex;align-items:flex-end;justify-content:space-between;gap:20px;flex-wrap:wrap;margin:26px 0 8px}
+h1{font-family:"Fraunces",Georgia,serif;font-weight:650;font-size:clamp(32px,5vw,48px);line-height:1.05;margin:0;letter-spacing:-.03em}
+h1 em{font-style:italic;color:transparent;background:linear-gradient(120deg,var(--fomo),var(--gmgn) 55%,var(--wallet));-webkit-background-clip:text;background-clip:text}
+.sub{color:var(--mut);font-size:14px;margin-top:8px;max-width:48ch}
+.strip{display:flex;flex-wrap:wrap;gap:8px;margin:18px 0 22px}
+.pill{background:var(--card);border:1px solid var(--line);border-radius:999px;padding:5px 11px;font-size:12px;color:var(--mut);display:inline-flex;align-items:center;gap:6px}
+.dot{width:8px;height:8px;border-radius:50%;display:inline-block;background:var(--bad);flex:none}
+.dot.on{background:var(--good);box-shadow:0 0 0 3px rgba(62,224,168,.15)}
+.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:22px}
+.card{background:linear-gradient(180deg,rgba(255,255,255,.03),transparent 40%),var(--card);border:1px solid var(--line);
+  border-radius:var(--r);padding:18px 18px 16px;cursor:pointer;box-shadow:var(--shadow);transition:transform .15s ease,border-color .15s ease;min-height:148px}
+.card:hover{transform:translateY(-2px);border-color:var(--line2)}
+.card.sel{border-color:transparent;box-shadow:0 0 0 1px var(--accent,var(--fomo)),var(--shadow)}
+.card[data-b=blind]{--accent:var(--fomo)}
+.card[data-b=managed]{--accent:var(--gmgn)}
+.card[data-b=wallet]{--accent:var(--wallet)}
+.card .k{font-size:12px;letter-spacing:.01em;text-transform:none;color:var(--mut);font-weight:600;display:flex;align-items:center;gap:8px}
+.swatch{width:9px;height:9px;border-radius:99px;background:var(--accent)}
+.card .e{font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:clamp(26px,3vw,34px);font-weight:500;letter-spacing:-.03em;margin:10px 0 4px}
+.card .delta{font-variant-numeric:tabular-nums;font-size:13.5px}
+.card .meta{margin-top:10px;color:var(--mut);font-size:12.5px}
+.g{color:var(--good)} .r{color:var(--bad)} .w{color:var(--warn)}
+h2{font-family:"Fraunces",Georgia,serif;font-weight:650;font-size:22px;margin:28px 0 12px;letter-spacing:-.02em}
+h2 .tag, .tag{font-family:"Plus Jakarta Sans",sans-serif;font-weight:500;font-size:12px;color:var(--mut);font-style:normal;letter-spacing:0}
+.panel{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:16px 18px;box-shadow:var(--shadow)}
+.chartbox{height:340px}.chartbox2{height:200px}
+.row{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.toggle{display:flex;gap:6px}
+.toggle button,.btn{background:var(--card2);color:var(--text);border:1px solid var(--line);border-radius:999px;padding:6px 12px;font:600 12px/1 "Plus Jakarta Sans",sans-serif;cursor:pointer}
+.toggle button.on,.btn.on{border-color:var(--fomo);color:var(--fomo);background:rgba(122,162,255,.1)}
+.metrics{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;margin:14px 0 8px}
+.metric{background:var(--card2);border:1px solid var(--line);border-radius:14px;padding:12px 14px}
+.metric .l{font-size:11px;color:var(--mut);letter-spacing:.06em;text-transform:uppercase;font-weight:600}
+.metric .v{font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:18px;margin-top:6px;letter-spacing:-.02em}
+.metric .s{font-size:11px;color:var(--mut);margin-top:3px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px}
+.tw{overflow-x:auto;-webkit-overflow-scrolling:touch}
+table{width:100%;border-collapse:collapse;font-size:12.5px}
+th,td{padding:8px 8px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top;white-space:nowrap}
+th{color:var(--mut);font-weight:600;font-size:11px;letter-spacing:.05em;text-transform:uppercase}
+.mono{font-family:"IBM Plex Mono",ui-monospace,monospace;font-variant-numeric:tabular-nums}
+.note{color:var(--mut);font-size:12.5px;margin:0 0 12px}
+.feed div{padding:9px 0;border-bottom:1px solid var(--line);font-size:13.5px}
+.feed .k{font-weight:700;margin-right:6px}
+.addr{font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:12px;color:var(--mut);word-break:break-all;white-space:normal}
+.limits{margin:0;padding-left:18px;color:var(--mut);font-size:12.5px}
+.limits li{margin:4px 0}
+.footer{margin-top:36px;color:var(--dim);font-size:12px}
+@media (max-width:900px){
+  .grid3,.grid2{grid-template-columns:1fr}
+  .chartbox{height:260px}
+  .wrap{padding:18px 14px 48px}
+  .card .e{font-size:28px}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="banner"><span>Paper trading · fake money · no real trades are placed</span><span>Evan’s Wallet is a live read-only view and is never copied into the paper books</span></div>
+  <header>
+    <div>
+      <h1>Portfolio <em>Analytics</em> Dashboard</h1>
+      <div class="sub">Two paper books against a $5,000 baseline, plus a public read-only view of Evan’s Solana wallet.</div>
+    </div>
+  </header>
+  <div class="strip" id="strip">Loading…</div>
+  <div class="grid3" id="cards"></div>
+
+  <div class="row">
+    <h2 id="chartTitle">Equity over time</h2>
+    <div class="toggle" id="rangeToggles">
+      <button class="on" data-r="rebase" id="btnRebase">Since $5,000 rebase</button>
+      <button data-r="all" id="btnAll">Full history</button>
+    </div>
+  </div>
+  <p class="note" id="baselineNote"></p>
+  <div class="panel chartbox"><canvas id="eq"></canvas></div>
+
+  <div id="detail"></div>
+
+  <h2>Latest moves</h2>
+  <div class="toggle" style="margin-bottom:10px">
+    <button id="tm" class="on">Trades</button>
+    <button id="td">Judge &amp; desk decisions</button>
+  </div>
+  <div class="panel feed" id="feed"></div>
+  <h2>GM/GN grading crew</h2>
+  <div class="panel tw" id="grading"></div>
+  <h2>Scanner hits</h2>
+  <div class="panel tw" id="hits"></div>
+  <p class="footer">Auto-refreshes every 60 seconds. All times Pacific (PT). Published from derived paper data and public chain data only.</p>
+</div>
+<script>
+const COL={blind:'#7aa2ff',managed:'#2dd4bf',wallet:'#f5b942',baseline:'rgba(238,241,247,.35)'};
+let D=null,sel=null,chart=null,tab='m',range='rebase';
+const f$=v=>v==null?'–':'$'+Number(v).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2});
+const pc=v=>v==null?'–':(v>0?'+':'')+Number(v).toFixed(1)+'%';
+const cl=v=>v>0?'g':v<0?'r':'';
+const px=v=>{if(v==null)return'–';const n=Number(v);return n===0?'0':Math.abs(n)<0.01?n.toPrecision(3):n.toLocaleString(undefined,{maximumFractionDigits:6});};
+const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const label=b=>esc(b.display_name||b.name);
+const labelOf=n=>{if(n==='wallet')return "Evan’s Wallet";const b=(D.books||[]).find(x=>x.name===n);return esc((b&&b.display_name)||n);};
+const dex=(c,m)=>m?`https://dexscreener.com/${c==='robinhood'?'robinhood':(c||'solana')}/${m}`:'#';
+const solscanA=a=>`https://solscan.io/account/${a}`;
+const solscanT=t=>`https://solscan.io/tx/${t}`;
+function shortAddr(a){if(!a)return'–';return a.slice(0,4)+'…'+a.slice(-4)}
+function dot(ok){return `<span class="dot ${ok?'on':''}"></span>`}
+function NA(){return '<span class="tag">n/a</span>'}
+
+function paperBooks(){return (D.books||[]).filter(b=>b.name==='blind'||b.name==='managed')}
+
+function renderCards(){
+  const bs=paperBooks();
+  const w=D.wallet;
+  const items=[];
+  const order=['blind','managed'];
+  order.forEach(n=>{const b=bs.find(x=>x.name===n);if(b)items.push({kind:'book',b});});
+  if(w) items.push({kind:'wallet',b:w});
+  if(!sel) sel=items[0]?.b?.name||'blind';
+  cards.innerHTML=items.map(({kind,b})=>{
+    const name=b.name||'wallet';
+    const title=kind==='wallet'?"Evan’s Wallet":(b.display_name||b.name);
+    const eq=b.equity;
+    const pnl=kind==='wallet'?null:b.pnl;
+    const pct=kind==='wallet'?null:b.pnl_pct;
+    const meta=kind==='wallet'
+      ? `${b.priced_n??'–'} priced · ${b.unpriced_n??0} unpriced · ${b.sol!=null?Number(b.sol).toFixed(4)+' SOL':'SOL –'}${b.stale?' · stale':''}`
+      : `${b.open_count} open · W/L ${b.wins}/${b.losses}${(b.caps&&b.caps.exposure_pct!=null)?` · ${b.caps.exposure_pct}% exposed`:''}`;
+    const delta=kind==='wallet'?'<span class="tag">read-only live wallet</span>'
+      : `<span class="${cl(pnl)}">${pnl>=0?'+':''}${f$(pnl).replace('$-','-$')} (${pc(pct)})</span>`;
+    return `<div class="card ${name===sel?'sel':''}" data-b="${name}">
+      <div class="k"><span class="swatch"></span>${esc(title)}</div>
+      <div class="e ${kind==='wallet'?'':cl(pnl)}">${f$(eq)}</div>
+      <div class="delta">${delta}</div>
+      <div class="meta">${meta}</div>
+    </div>`;
+  }).join('');
+  document.querySelectorAll('.card').forEach(c=>c.onclick=()=>{sel=c.dataset.b;render()});
+}
+
+function parseWhen(p){
+  if(!p) return null;
+  if(p==='now'||p.iso==='now') return Date.now();
+  const s=String((typeof p==='string'?p:(p.iso||p.t))||'');
+  const m=s.match(/(\d{4}-\d\d-\d\d)[ T](\d\d:\d\d)/);
+  if(!m) return null;
+  let off='Z';
+  if(/PST|\bPT\b/.test(s)) off='-08:00';
+  else if(/PDT/.test(s)) off='-07:00';
+  else if(/UTC/.test(s)) off='Z';
+  const ms=Date.parse(m[1]+'T'+m[2]+':00'+off);
+  return Number.isNaN(ms)?null:ms;
+}
+function rebaseMs(){
+  return parseWhen(D.rebase_from)||Date.parse('2026-11-10T21:57:00-08:00');
+}
+function seriesFor(name){
+  if(name==='wallet') return (D.wallet&&D.wallet.series)||[];
+  return (D.series&&D.series[name])||[];
+}
+function afterRebase(p){
+  const t=parseWhen(p);
+  if(t==null) return true;
+  return t>=rebaseMs();
+}
+function drawChart(){
+  const names=sel==='wallet'?['wallet']:['blind','managed'];
+  const ds=names.map(n=>{
+    let pts=seriesFor(n);
+    if(range==='rebase'&&n!=='wallet') pts=pts.filter(afterRebase);
+    return {label:n==='wallet'?"Evan’s Wallet":labelOf(n),
+      data:pts.map(p=>({x:p.t,y:p.v})),
+      borderColor:COL[n]||'#fff',backgroundColor:COL[n]||'#fff',
+      pointRadius:pts.length<3?3:0,borderWidth:2,tension:.25};
+  });
+  if(sel!=='wallet'){
+    const base=D.baseline||D.start_cash||5000;
+    const labels=ds[0]?.data||[];
+    ds.push({label:`$${Number(base).toLocaleString()} baseline`,data:(ds[0]?.data||[]).map(p=>({x:p.x,y:base})),
+      borderColor:COL.baseline,borderDash:[5,5],pointRadius:0,borderWidth:1.5,tension:0});
+  }
+  const labels=[...new Set(ds.flatMap(d=>d.data.map(p=>p.x)))];
+  const hidden=chart?Object.fromEntries(chart.data.datasets.map((d,i)=>[d.label,!chart.isDatasetVisible(i)])):{};
+  ds.forEach(d=>d.hidden=!!hidden[d.label]);
+  if(chart)chart.destroy();
+  chart=new Chart(eq,{type:'line',data:{labels,datasets:ds},options:{
+    maintainAspectRatio:false,parsing:{xAxisKey:'x',yAxisKey:'y'},
+    interaction:{mode:'index',intersect:false},
+    plugins:{legend:{labels:{color:'#eef1f7',boxWidth:12,font:{family:'Plus Jakarta Sans'}}}},
+    scales:{
+      x:{ticks:{color:'#8b93a7',maxTicksLimit:6,autoSkip:true},grid:{color:'rgba(255,255,255,.05)'}},
+      y:{ticks:{color:'#8b93a7',callback:v=>'$'+Number(v).toLocaleString()},grid:{color:'rgba(255,255,255,.05)'}}
+    }
+  }});
+}
+
+function metric(lab,val,sub){return `<div class="metric"><div class="l">${esc(lab)}</div><div class="v">${val}</div>${sub?`<div class="s">${sub}</div>`:''}</div>`}
+
+function renderPaper(b){
+  const s=b.stats||{}, c=b.caps||{};
+  const st=D.baseline_history||[];
+  const slip=s.slip;
+  const grp=L=>L&&L.length?L.map(e=>`${esc(e.k)}: <span class="${cl(e.pnl)}">${f$(e.pnl)}</span> <span class="tag">(${e.n}, ${e.hit_rate!=null?e.hit_rate+'% hit':e.wins+'W'})</span>`).join('<br>'):NA();
+  const bt2=x=>x?`${esc(x.symbol)} <span class="${cl(x.pnl)}">${f$(x.pnl)} (${pc(x.pct)})</span>`:NA();
+  detail.innerHTML=`
+    <h2>${label(b)} <span class="tag">${esc(b.name)} · cash ${f$(b.cash)}</span></h2>
+    <div class="metrics">
+      ${metric('Equity', f$(b.equity), `<span class="${cl(b.pnl)}">${pc(b.pnl_pct)} vs $${Number(D.baseline||5000).toLocaleString()} baseline</span>`)}
+      ${metric('Total PnL', `<span class="${cl(s.total_pnl)}">${f$(s.total_pnl)}</span>`)}
+      ${metric('Realized', `<span class="${cl(s.realized)}">${f$(s.realized)}</span>`)}
+      ${metric('Unrealized', `<span class="${cl(s.unrealized)}">${f$(s.unrealized)}</span>`)}
+      ${metric('Cash', f$(b.cash))}
+      ${metric('Win rate', s.win_rate==null?NA():s.win_rate+'%', `${s.closed_n||0} closed · ${b.wins}W / ${b.losses}L`)}
+      ${metric('Avg win / loss', `${s.avg_win==null?NA():f$(s.avg_win)} / ${s.avg_loss==null?NA():f$(s.avg_loss)}`)}
+      ${metric('Profit factor', s.profit_factor==null?NA():s.profit_factor)}
+      ${metric('Max drawdown', s.max_dd_pct==null?NA():`<span class="${s.max_dd_pct<0?'r':''}">${s.max_dd_pct}%</span>`, s.max_dd_pct_all!=null&&s.max_dd_pct_all!==s.max_dd_pct?'prior book '+s.max_dd_pct_all+'%':'since rebase')}
+      ${metric('Exposure', `${c.exposure_pct??'–'}% / ${c.cap_pct??50}%`, `${b.open_count} / ${c.max_open??8} open · ${c.accepting?'taking new buys':'no new buys until under caps'}`)}
+      ${metric('Avg hold', s.avg_hold_h==null?NA():s.avg_hold_h+' h')}
+      ${metric('Delay slippage', slip?((slip.median_pct>0?'+':'')+slip.median_pct.toFixed(1)+'% med'):NA(), slip?`${slip.n} fills · avg ${(slip.avg_pct>0?'+':'')+slip.avg_pct.toFixed(1)}%`: 'leader fill vs delay_price')}
+    </div>
+    <div class="grid2">
+      <div class="panel">
+        <div class="l tag" style="margin-bottom:8px">BEST / WORST · CHAINS · SIZE</div>
+        <div>Best ${bt2(s.best)}</div>
+        <div>Worst ${bt2(s.worst)}</div>
+        <div style="margin-top:10px">${grp(s.by_chain)}</div>
+        <div style="margin-top:10px">${grp(s.by_size)}</div>
+        ${s.ladder?`<div style="margin-top:10px" class="tag">Ladder ${Object.entries(s.ladder).map(([k,n])=>k+': '+n).join(' · ')}</div>`:''}
+      </div>
+      <div class="panel">
+        <div class="l tag" style="margin-bottom:8px">PNL BY TRADER (HIT RATE)</div>
+        <div>${grp(s.by_trader)}</div>
+      </div>
+    </div>
+    <div class="grid2">
+      <div class="panel chartbox2"><canvas id="ddc"></canvas></div>
+      <div class="panel chartbox2"><canvas id="dpc"></canvas></div>
+    </div>
+    <h2>Open positions <span class="tag">${b.open.length}</span></h2>
+    <div class="panel tw"><table><tr><th>Token</th><th>Chain</th><th>Size</th><th>Entry</th><th>Current</th><th>Value</th><th>PnL</th><th>% book</th><th>Traders</th><th>Source</th></tr>
+    ${b.open.map(p=>`<tr>
+      <td><a href="${dex(p.chain,p.mint)}" target="_blank">${esc(p.symbol)}</a>${p.hold?'<div class="tag">user hold</div>':''}${p.ladder?`<div class="tag">ladder ${esc(p.ladder)}</div>`:''}${(p.sold_so_far&&!p.ladder)?`<div class="tag">leader sells so far ${f$(p.sold_so_far)}</div>`:''}${p.flag?`<div class="tag w">${esc(p.flag)}</div>`:''}</td>
+      <td>${esc(p.chain)}</td>
+      <td class="mono">${f$(p.size??p.cost)}${p.size_pct!=null?`<div class="tag">${(p.size_pct*100).toFixed(1)}%</div>`:''}</td>
+      <td class="mono">${px(p.entry)}<div class="tag">${esc(p.opened)}</div></td>
+      <td class="mono">${px(p.now)}</td>
+      <td class="mono">${f$(p.value)}</td>
+      <td class="mono ${cl(p.pnl)}">${f$(p.pnl)}<div>${pc(p.pnl_pct)}</div></td>
+      <td>${p.pct_of_book??'–'}%</td>
+      <td>${esc(p.traders||'–')}${p.confluence?`<div class="tag">${esc(p.confluence)}</div>`:''}</td>
+      <td class="tag">${esc(p.entry_source||'–')}${p.delay_slip_pct!=null?`<div>${(p.delay_slip_pct*100).toFixed(1)}% slip</div>`:''}</td>
+    </tr>`).join('')||'<tr><td colspan=10 class="tag">none</td></tr>'}</table></div>
+    <h2>Closed trades <span class="tag">${b.history.length} shown, newest first</span></h2>
+    <div class="panel tw"><table><tr><th>Token</th><th>Chain</th><th>Trader</th><th>Opened → Closed</th><th>Cost</th><th>Proceeds</th><th>PnL</th><th>Exit</th></tr>
+    ${b.history.map(p=>`<tr>
+      <td><a href="${dex(p.chain,p.mint)}" target="_blank">${esc(p.symbol)}</a></td>
+      <td>${esc(p.chain)}</td>
+      <td>${esc(p.traders||p.leader||'–')}</td>
+      <td class="tag">${esc(p.opened)}<br>${esc(p.closed)}</td>
+      <td class="mono">${f$(p.cost)}</td>
+      <td class="mono">${f$(p.proceeds)}</td>
+      <td class="mono ${cl(p.pnl)}">${f$(p.pnl)}<div>${pc(p.pnl_pct)}</div></td>
+      <td class="tag">${esc(p.reason)}</td>
+    </tr>`).join('')||'<tr><td colspan=8 class="tag">none</td></tr>'}</table></div>`;
+  const BB=[b];
+  const mk=(el,type,key,lab)=>{
+    const L=[...new Set(BB.flatMap(bk=>((bk.stats||{})[key]||[]).map(p=>p.t||p.d)))];
+    return new Chart(el,{type,data:{labels:L,datasets:BB.map((bk,i)=>({label:(bk.display_name||bk.name)+' '+lab,data:L.map(l=>{const p=((bk.stats||{})[key]||[]).find(p=>(p.t||p.d)===l);return p?(p.v??p.pnl):null}),borderColor:COL[bk.name],backgroundColor:COL[bk.name],pointRadius:0,borderWidth:2,spanGaps:true}))},
+      options:{maintainAspectRatio:false,animation:false,plugins:{legend:{labels:{color:'#eef1f7',boxWidth:10}}},scales:{x:{ticks:{color:'#8b93a7',maxTicksLimit:5}},y:{ticks:{color:'#8b93a7'}}}}});
+  };
+  if(window.c1)window.c1.destroy(); if(window.c2)window.c2.destroy();
+  window.c1=mk(document.getElementById('ddc'),'line','dd_series','drawdown %');
+  window.c2=mk(document.getElementById('dpc'),'bar','daily','daily PnL $');
+}
+
+function renderWallet(w){
+  if(!w){detail.innerHTML='<p class="note">Wallet data is unavailable.</p>';return;}
+  const err=w.error?`<p class="note w">${esc(w.error)}${w.stale?' (showing last snapshot)':''}</p>`:'';
+  detail.innerHTML=`
+    <h2>Evan’s Wallet <span class="tag">read-only · never copied into paper books</span></h2>
+    <p class="addr"><a href="${solscanA(w.address)}" target="_blank">${esc(w.address)}</a></p>
+    ${err}
+    <div class="metrics">
+      ${metric('Total value', f$(w.equity), w.stale?'stale snapshot':'priced holdings + native SOL')}
+      ${metric('Native SOL', w.sol==null?'–':Number(w.sol).toFixed(4), w.sol_usd!=null?f$(w.sol_usd)+' @ '+f$(w.sol_price):'')}
+      ${metric('Priced tokens', String(w.priced_n??0), `${w.holdings_n??0} with a balance`)}
+      ${metric('Unpriced tokens', String(w.unpriced_n??0), 'no liquid Dexscreener pool ≥ $5K')}
+    </div>
+    <h2>Holdings <span class="tag">highest value first</span></h2>
+    <div class="panel tw"><table><tr><th>Token</th><th>Qty</th><th>Price</th><th>Value</th></tr>
+    ${(w.holdings||[]).map(p=>`<tr>
+      <td><a href="${dex('solana',p.mint)}" target="_blank">${esc(p.symbol)}</a><div class="tag">${esc(p.mint)}</div></td>
+      <td class="mono">${Number(p.qty).toLocaleString(undefined,{maximumFractionDigits:4})}</td>
+      <td class="mono">${px(p.price)}</td>
+      <td class="mono">${f$(p.value)}</td>
+    </tr>`).join('')||'<tr><td colspan=4 class="tag">no priced holdings</td></tr>'}</table></div>
+    ${w.unpriced_n?`<p class="note">${w.unpriced_n} additional token${w.unpriced_n===1?'':'s'} have a balance but no liquid pool under the same $5K quote-side rule used for paper marks, so they are omitted from the total.</p>`:''}
+    <h2>Recent swaps <span class="tag">inferred from the last 15 on-chain signatures</span></h2>
+    <div class="panel tw"><table><tr><th>Time</th><th>Side</th><th>Token</th><th>Qty</th><th>USD (est.)</th><th>Tx</th></tr>
+    ${(w.swaps||[]).map(p=>`<tr>
+      <td class="tag">${esc(p.t||'–')}</td>
+      <td class="${p.side==='Buy'?'g':'r'}"><b>${esc(p.side)}</b></td>
+      <td><a href="${dex('solana',p.mint)}" target="_blank">${esc(p.symbol||p.mint)}</a></td>
+      <td class="mono">${p.qty==null?'–':Number(p.qty).toLocaleString(undefined,{maximumFractionDigits:4})}</td>
+      <td class="mono">${p.usd==null?'–':f$(p.usd)}</td>
+      <td class="tag">${p.tx?`<a href="${solscanT(p.tx)}" target="_blank">${esc(p.tx.slice(0,8))}…</a>`:'–'}</td>
+    </tr>`).join('')||'<tr><td colspan=6 class="tag">none parsed</td></tr>'}</table></div>
+    <h2>Wallet data limits</h2>
+    <ul class="limits">${(w.limits||[]).map(x=>`<li>${esc(x)}</li>`).join('')}</ul>
+  `;
+}
+
+function render(){
+  D.books=(D.books||[]).filter(b=>b.name==='blind'||b.name==='managed');
+  const s=D.status||{}, w=s.watcher||{};
+  const age=Math.round((Date.now()/1000-(D.updated_epoch||0))/60);
+  strip.innerHTML=`<span class="pill">Updated ${esc(D.updated||'')}${age>5?` <b class="r">(${age} min old)</b>`:''}</span>
+    <span class="pill">${dot(w.alive)}Watcher${w.targets?` · ${w.targets} wallets`:''}${(Number(w.median_latency_s)>0)?` · ~${w.median_latency_s}s lag`:''}</span>
+    <span class="pill">${dot(s.feeds_alive)}Feeds</span>
+    <span class="pill">${dot(s.scanner_alive)}Scanner</span>
+    <span class="pill">${dot(s.export_loop!==false)}Exporter</span>`;
+  const hist=D.baseline_history||[];
+  const cur=D.baseline||D.start_cash||5000;
+  const prev=hist.find(h=>h.to);
+  baselineNote.textContent=`Performance is measured against a $${Number(cur).toLocaleString()} baseline since Nov 10, 2026, 9:57 PM PT. ${prev?`The original paper start was $${Number(prev.baseline).toLocaleString()} until that rebase. `:''}“Full history” includes the book before the top-up.`;
+  renderCards();
+  chartTitle.textContent=sel==='wallet'?"Evan’s Wallet value":'Equity over time';
+  rangeToggles.style.display=sel==='wallet'?'none':'flex';
+  drawChart();
+  if(sel==='wallet') renderWallet(D.wallet);
+  else {
+    const b=paperBooks().find(x=>x.name===sel)||paperBooks()[0];
+    if(b) renderPaper(b);
+  }
+  const L=tab==='m'?D.moves||[]:D.decisions||[];
+  feed.innerHTML=L.map(m=>{const k=m.kind||'';const c=/BUY|COPY/.test(k)?'g':/SELL|SKIP|PASS/.test(k)?'r':'';
+    return `<div><span class="k ${c}">${esc(k)}</span><b>${esc(m.token)}</b> <span class="tag">${labelOf(m.book)} · ${esc(m.chain||'')} ${m.leader?'· '+esc(m.leader):''} · ${esc(m.t)}</span><div class="tag">${esc(m.reason)}</div></div>`}).join('')||'<div class="tag">nothing yet</div>';
+  try{renderGrading()}catch(e){}
+  hits.innerHTML=`<table><tr><th>Time</th><th>Token</th><th>Mcap</th><th>Result</th></tr>${(D.scanner_hits||[]).map(h=>`<tr><td class="tag">${esc(h.t)}</td><td>${esc(h.symbol)}</td><td>${h.mcap?f$(h.mcap):'–'}</td><td class="tag">${esc(h.result)}${h.reason&&h.reason!==h.result?': '+esc(h.reason):''}</td></tr>`).join('')||'<tr><td colspan=4 class="tag">none</td></tr>'}</table>`;
+}
+function renderGrading(){
+  const g=D.grading; const el=document.getElementById('grading'); if(!el) return;
+  if(!g||g.error){el.innerHTML=`<div class="tag">${g&&g.error?esc(g.error):'not started yet'}</div>`;return}
+  const v=g.verdicts||{}; const pc=x=>x&&x.n?`${x.pnl>=0?'+':''}${f$(x.pnl)} (${x.pnl_pct==null?'–':x.pnl_pct+'%'}, ${x.n})`:'–';
+  const sc=g.scanner||{};
+  let h=`<table><tr><th>Candidates found</th><th>BUY</th><th>SMALL</th><th>SKIP</th><th>Avg score</th><th>Graded buys PnL</th><th>Fomo Copy, same tokens</th><th>Fomo Copy since first graded buy</th></tr>
+  <tr><td>${g.candidates||0}</td><td>${v.BUY||0}</td><td>${v.SMALL||0}</td><td>${v.SKIP||0}</td><td>${g.avg_score==null?'–':g.avg_score}</td><td>${pc(g.graded_buys)}</td><td>${pc(g.fomo_copy_same_tokens)}</td><td>${pc(g.fomo_copy_since_first_graded)}</td></tr></table>`;
+  h+=`<div class="tag" style="margin:8px 0">Scanner ${g.scanner_alive?'running':'not running'}${sc.alive_at?' · last seen '+esc(sc.alive_at):''}. GM/GN buys only on a BUY/SMALL verdict; Fomo Copy keeps copying blind as the control.</div>`;
+  const R=g.recent||[];
+  h+=`<table><tr><th>Found</th><th>Token</th><th>Source</th><th>Verdict</th><th>Score</th><th>Result</th></tr>${R.map(r=>`<tr><td class="tag">${esc(r.found||'')}</td><td>${esc(r.symbol||'?')} <span class="tag">${esc(r.chain||'')}</span></td><td class="tag">${esc(r.source||'')}${r.trader?' · '+esc(r.trader):''}</td><td>${esc(r.verdict||'pending')}</td><td>${r.score==null?'–':esc(r.score)}</td><td class="tag">${esc(r.result||'')}</td></tr>`).join('')||'<tr><td colspan=6 class="tag">no candidates yet</td></tr>'}</table>`;
+  el.innerHTML=h;
+}
+tm.onclick=()=>{tab='m';tm.className='on';td.className='';render()};
+td.onclick=()=>{tab='d';td.className='on';tm.className='';render()};
+btnRebase.onclick=()=>{range='rebase';btnRebase.className='on';btnAll.className='';render()};
+btnAll.onclick=()=>{range='all';btnAll.className='on';btnRebase.className='';render()};
+async function load(){try{const r=await fetch('data.json?'+Date.now(),{cache:'no-store'});D=await r.json();render()}catch(e){strip.textContent='Could not load data: '+e}}
+load();setInterval(load,60000);
+</script>
+</body>
+</html>
